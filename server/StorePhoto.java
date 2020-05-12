@@ -1,17 +1,9 @@
 package mammoth.server;
 
 import mammoth.common.LogTool;
-import mammoth.jclient.Feature;
-import mammoth.jclient.Feature.FeatureLIREType;
-import mammoth.jclient.Feature.FeatureType;
-import mammoth.jclient.ImagePHash;
-import mammoth.jclient.ResultSet;
 import mammoth.common.RedisPool;
 import mammoth.common.RedisPoolSelector;
-import mammoth.common.RedisPoolSelector.RException;
 import mammoth.common.RedisPoolSelector.RedisConnection;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Pipeline;
 import redis.clients.jedis.ScanParams;
@@ -19,7 +11,6 @@ import redis.clients.jedis.ScanResult;
 import redis.clients.jedis.exceptions.JedisConnectionException;
 import redis.clients.jedis.exceptions.JedisException;
 
-import java.awt.image.BufferedImage;
 import java.io.*;
 import java.util.*;
 import java.util.Map.Entry;
@@ -472,11 +463,6 @@ public class StorePhoto {
                 ServerProfile.writeErr.incrementAndGet();
             }
             rps.putL2(rc);
-        }
-        try {
-            FeatureSearch.add(conf, new FeatureSearch.ImgKeyEntry(conf.getFeatures(), content, 0, clen, set, md5));
-        } catch (Exception e) {
-            e.printStackTrace();
         }
         return returnStr;
     }
@@ -1074,101 +1060,7 @@ public class StorePhoto {
         lookupCache.close();
     }
 
-    /**
-     * Image Search based BufferedImage
-     *
-     * @param bitDiff
-     * @param d
-     * @return
-     * @throws IOException
-     */
-    public ResultSet imageSearch(BufferedImage bi, int d, int bitDiff) throws IOException {
-        ResultSet rs = new ResultSet(ResultSet.ScoreMode.PROD);
 
-        for (FeatureType feature : conf.getFeatures()) {
-            switch (feature) {
-                case IMAGE_PHASH_ES:
-                    String hc = new ImagePHash().getHash(bi);
-                    rs.addAll(FeatureIndex.getObject(hc, ServerConf.getFeatureTypeString(feature), d, bitDiff));
-                    break;
-            }
-        }
-
-        return rs;
-    }
-
-    /**
-     * Search by features
-     *
-     * @param features
-     * @return
-     * @throws IOException
-     */
-    public ResultSet featureSearch(BufferedImage bi, List<Feature> features) throws IOException {
-        ResultSet rs = new ResultSet(ResultSet.ScoreMode.PROD);
-
-        for (Feature feature : features) {
-            switch (feature.type) {
-                case IMAGE_PHASH_ES: {
-                    int maxEdits = 4, bitDiffInBlock = 0;
-
-                    if (feature.args != null && feature.args.size() >= 2) {
-                        maxEdits = Integer.parseInt(feature.args.get(0));
-                        bitDiffInBlock = Integer.parseInt(feature.args.get(1));
-                    }
-                    rs.addAll(FeatureIndex.getObject(feature.value, ServerConf.getFeatureTypeString(feature.type), maxEdits,
-                            bitDiffInBlock));
-                    break;
-                }
-                case IMAGE_LIRE: {
-                    int maxHits = 100;
-                    FeatureLIREType sType = FeatureLIREType.CEDD;
-                    FeatureLIREType fType = FeatureLIREType.NONE;
-
-                    if (feature.args != null) {
-                        if (feature.args.size() >= 3) {
-                            maxHits = Integer.parseInt(feature.args.get(0));
-                            sType = Feature.getFeatureLIREType(feature.args.get(1));
-                            fType = Feature.getFeatureLIREType(feature.args.get(2));
-                        } else if (feature.args.size() >= 2) {
-                            maxHits = Integer.parseInt(feature.args.get(0));
-                            sType = Feature.getFeatureLIREType(feature.args.get(1));
-                        } else if (feature.args.size() >= 1) {
-                            maxHits = Integer.parseInt(feature.args.get(0));
-                        }
-                    }
-                    if (bi != null) {
-                        rs.addAll(FeatureIndex.getObjectLIRE(sType, fType, bi, maxHits));
-                    }
-                    break;
-                }
-                case IMAGE_FACES: {
-                    int maxHits = 100;
-                    FeatureLIREType sType = FeatureLIREType.CEDD;
-                    FeatureLIREType fType = FeatureLIREType.NONE;
-
-                    if (feature.args != null) {
-                        if (feature.args.size() >= 3) {
-                            maxHits = Integer.parseInt(feature.args.get(0));
-                            sType = Feature.getFeatureLIREType(feature.args.get(1));
-                            fType = Feature.getFeatureLIREType(feature.args.get(2));
-                        } else if (feature.args.size() >= 2) {
-                            maxHits = Integer.parseInt(feature.args.get(0));
-                            sType = Feature.getFeatureLIREType(feature.args.get(1));
-                        } else if (feature.args.size() >= 1) {
-                            maxHits = Integer.parseInt(feature.args.get(0));
-                        }
-                    }
-                    if (bi != null) {
-                        rs.addAll(FeatureIndex.getObjectFaces(sType, fType, bi, maxHits));
-                    }
-                    break;
-                }
-            }
-        }
-
-        return rs;
-    }
 
 
     private String setL1Seq(String set) {

@@ -166,7 +166,7 @@ public class PhotoServer {
      * 将所有‘v1545267600.blk.SBZX-HXSJ-CL-0223./mmd1’格式的数据转成‘v1545267600.blk.2./mmd2’格式
      * @throws Exception
      */
-    public void __upgrade_blk_info() throws Exception {
+    /*public void __upgrade_blk_info() throws Exception {
         Jedis jedis = StorePhoto.getRpL1(conf).getResource();
 
         if (jedis == null) {
@@ -212,7 +212,7 @@ public class PhotoServer {
         } finally {
             StorePhoto.getRpL1(conf).putInstance(jedis);
         }
-    }
+    }*/
 
     public static String getDNSHtml(ServerConf conf) {
         Jedis jedis = StorePhoto.getRpL1(conf).getResource();
