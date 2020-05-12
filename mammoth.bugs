@@ -1,0 +1,38 @@
+1. java客户端get报错--“server idx *** can`t be resolved”.
+    位置：photoclient.searchbyinfo servers.get()；
+    原因：添加了多媒体服务节点导致客户端bug。
+    具体分析：客户端中servers是一个记录多媒体服务节点serverId和节点ip:port的映射表，在客户端初始化时同时初始化，当新加入节点时
+        servers中没有刷新最新的服务节点serverId与ip:port的映射关系，因为客户端根据元数据中的serverId查找映射表确定要查找数据所
+        在的服务节点，这就导致存储在新节点的数据在客户端解析元数据中的serverid时不能找到对应服务节点的ip:port，因此出现查不到数
+        据的情况；
+    注：这种情况只会出现在通过java客户端get数据时，http接口和java客户端put接口不受添加新服务节点影响。
+    解决方法：①添加新节点时，使用java客户端get接口的服务重启；②添加客户端自动刷新。
+
+    媒体库升级方案：
+    1.元数据（redisL1、redisL2）中慢查询：
+        当前问题：当前为sentinel模式，一个master 一个slave，读写都落在master节点，当数据量越来越大时慢查询会严重影响读写性能；
+        升级方案：替换或删除L1和L2中的慢查询，redis master-slave读写分离，master只写数据，slave只读数据；
+    2.元数据新建set分配到L2中离散策略更新：
+        当前问题：现有策略为按照L2 index轮询，所有客户端都会按照确定的顺序分配set到L2，导致数据分配失衡；
+        升级方案：提供loadBalance策略，根据内存使用率分配新建set所在L2节点；
+    3.客户端生成key逻辑调整：
+        当前问题：当前按照时间同一个小时内的数据落在同一个set（当前小时:00:00所对应的时间戳）中，所以当前小时数据的读写都落在一个
+            redis L2中，导致单个redis L2服务数据访问过热；
+        升级方案：按照时间同一天时间内数据落到N个set中，根据（timestamp%N）确定要落入N个set中的第几个，这样元数据时间维度从
+            小时扩大到了天，当天数据会分散到N个redis L2，从而避免了同一时间段数据集中到一个redis L2中，理论上元数据服务的性能
+            可以提升N倍；
+    4.redis L2 hash表长度过长：
+        当前问题：可能出现的慢查询会影响性能；
+        升级方案：归纳相同set对应的元数据到一个hash表中，并不使用慢查询；（主要针对redis L2中“set.blk.srvs.disk”数据）
+    5.http接口：
+        当前问题：没有上传文件的接口；
+        升级方案：添加上传文件接口；
+    6.server和client版本认证：
+        当前问题：client和server版本混乱；
+        升级方案：添加版本号，和规范对外接口1、client向下兼容；
+    7.添加新节点问题：
+        当前问题：添加新节点后servers不会更新，此问题不会影响写入和http查询，但会影响client get功能，导致client不能解析serverId；
+        升级方案：客户端添加刷新servers；
+    8.client初始化问题：
+        当前问题：client初始化时会初始化到服务端的连接，在数据节点异常时可能导致客户端初始化过久从而造成调用方TimeOUt；
+        升级方案：client在读写数据时初始化连接，连接设置timeOut时间；

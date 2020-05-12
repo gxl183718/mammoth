@@ -1,0 +1,111 @@
+package iie.mm.server;
+
+import org.iq80.leveldb.DB;
+import org.iq80.leveldb.DBException;
+import org.iq80.leveldb.Options;
+
+import java.io.File;
+import java.io.IOException;
+
+import static org.fusesource.leveldbjni.JniDBFactory.factory;
+
+/**
+ * leveldb接口
+ *
+ * @author zzq
+ */
+public class RocksDBInterface {
+
+    public static class Rocks {
+        private int rocksid = 0;
+        private DB db = null;
+        private String db_path = "./leveldb";
+        private Options options = null;
+
+        public boolean open(String prefix) {
+            boolean r = true;
+
+            File f = new File(prefix + "/" + db_path);
+            f.mkdirs();
+
+            options = new Options().createIfMissing(true);
+            //.setIncreaseParallelism(64 * 1024 * 1024);
+            try {
+                db = factory.open(new File(prefix + "/" + db_path), options);
+            } catch (IOException e) {
+                e.printStackTrace();
+                r = false;
+            }
+            return r;
+        }
+
+        public void write(String key, String value) {
+            try {
+                db.put(key.getBytes(), value.getBytes());
+            } catch (DBException e) {
+                e.printStackTrace();
+            }
+        }
+
+        public void delete(String key) {
+            try {
+                db.delete(key.getBytes());
+            } catch (DBException e) {
+                e.printStackTrace();
+            }
+        }
+
+        public String read(String key) {
+            try {
+                byte[] vb = db.get(key.getBytes());
+                if (vb != null)
+                    return new String(vb);
+            } catch (DBException e) {
+                e.printStackTrace();
+            }
+            return null;
+        }
+
+        private void close() {
+            if (db != null)
+                try {
+                    db.close();
+//					options.dispose();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+        }
+
+        public Rocks(int rocksid) {
+            this.rocksid = rocksid;
+        }
+    }
+
+    private static Rocks rocks0 = new Rocks(0);
+    private static Rocks rocks1 = new Rocks(1);
+    private static boolean isOpenned0 = false;
+    private static boolean isOpenned1 = false;
+
+    public static Rocks getRocks(int rocksid) {
+        if (rocksid == 0)
+            return rocks0;
+        else if (rocksid == 1)
+            return rocks1;
+        return null;
+    }
+
+    public RocksDBInterface(ServerConf conf) {
+        if (!isOpenned0)
+            isOpenned0 = rocks0.open(conf.getRocks_prefix() + rocks0.rocksid);
+        if (!isOpenned1)
+            isOpenned1 = rocks1.open(conf.getRocks_prefix() + rocks1.rocksid);
+    }
+
+    public void rocksClose() {
+        if (isOpenned0)
+            rocks0.close();
+        if (isOpenned1)
+            rocks1.close();
+    }
+
+}
