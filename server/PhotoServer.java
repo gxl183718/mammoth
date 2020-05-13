@@ -14,10 +14,7 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.text.NumberFormat;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
-import java.util.Timer;
+import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -103,10 +100,11 @@ public class PhotoServer {
         // 计算图片hash值的线程
         //FeatureSearch im = new FeatureSearch(conf);
         //im.startWork(4);
-        
+
+        //TODO:统计功能使用了keys命令，慢查询会影响性能，关闭该功能。
         //入库统计http charts
-        MMCountThread mmct = new MMCountThread(conf);
-    	new Thread(mmct).start();
+//        MMCountThread mmct = new MMCountThread(conf);
+//    	new Thread(mmct).start();
 
         // shutdown hook
         Runtime.getRuntime().addShutdownHook(new Thread() {
@@ -265,19 +263,22 @@ public class PhotoServer {
             // find all mms servers
             Set<Tuple> mservers = jedis.zrangeWithScores("mm.active", 0, -1);
             HashMap<String, Long> smap = new HashMap<String, Long>();
-
+            Set<String> aservers = new HashSet<>();
             if (mservers != null) {
                 for (Tuple s : mservers) {
                     smap.put(s.getElement(), (long) s.getScore());
+                    if (jedis.exists("mm.hb." + s.getElement())){
+                        aservers.add(s.getElement());
+                    }
                 }
             }
 
             // find heartbeated servers
-            Set<String> aservers = jedis.keys("mm.hb.*");
+
             if (aservers != null) {
                 r += "</tt><H2> Active MM Servers: </H2><tt>";
                 for (String s : aservers) {
-                    r += "<p>[MMS" + smap.get(s.substring(6)) + "] " + s.substring(6);
+                    r += "<p>[MMS" + smap.get(s) + "] " + s;
                 }
                 r += "</tt>";
                 activeNr = aservers.size();
@@ -318,15 +319,18 @@ public class PhotoServer {
         try {
             // find all servers
             Set<String> servers = jedis.zrange("mm.active", 0, -1);
+            Set<String> aServers = new HashSet<>();
             r += "\n Total  Servers:";
             for (String s : servers) {
                 r += " " + s + ",";
+                if (jedis.exists("mm.hb." + s)){
+                    aServers.add(s);
+                }
             }
             // find heartbeated servers
-            servers = jedis.keys("mm.hb.*");
             r += "\n Active Servers:";
-            for (String s : servers) {
-                r += " " + s.substring(6) + ",";
+            for (String s : aServers) {
+                r += " " + s + ",";
             }
         } finally {
             StorePhoto.getRpL1(conf).putInstance(jedis);
@@ -362,18 +366,19 @@ public class PhotoServer {
 
             Set<Tuple> mservers = jedis.zrangeWithScores("mm.active", 0, -1);
             HashMap<String, Long> smap = new HashMap<String, Long>();
-
+            Set<String> aservers = new HashSet<>();
             if (mservers != null) {
                 for (Tuple s : mservers) {
                     smap.put(s.getElement(), (long) s.getScore());
+                    if (jedis.exists("mm.hb." + s.getElement())){
+                        aservers.add(s.getElement());
+                    }
                 }
             }
-
-            Set<String> aservers = jedis.keys("mm.hb.*");
             if (aservers != null) {
                 r += "<div class=\"col-sm-4 invoice-col\"><address><strong>Active MM Servers</strong><br>";
                 for (String s : aservers) {
-                    r += "[MMS" + smap.get(s.substring(6)) + "] " + s.substring(6) + "<br>";
+                    r += "[MMS" + smap.get(s) + "] " + s + "<br>";
                 }
                 r += "</address></div>";
                 activeNr = aservers.size();

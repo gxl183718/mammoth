@@ -322,7 +322,6 @@ public class StorePhoto {
      * ,该图片所属集合,所在节点, 节点的端口号,所在相对路径（包括完整文件名）,位于所在块的偏移的字节数，该图片的字节数,磁盘
      */
     private String _storePhoto(String set, String md5, byte[] content, int clen, int coff, String fn) {
-//        setL1Seq(set);
         String returnStr = "#FAIL: unknown error.";
         RedisConnection rc = null;
         try {
@@ -372,7 +371,7 @@ public class StorePhoto {
                     // 当前可写的块号加一
                     do {
                         if (ssc.bref.get() == 0) {
-                            jedis.incr(set + ".blk." + ServerConf.serverId + "." + ssc.disk);
+                            jedis.hincrBy( "blk." + set, + ServerConf.serverId + "." + ssc.disk, 1);
                             break;
                         }
                         Thread.yield();
@@ -470,7 +469,7 @@ public class StorePhoto {
     private void CreateSSCIfAbsent(String set, Jedis jedis, StoreSetContext ssc) throws IOException {
         if (ssc.curBlock < 0) {
             // 需要通过节点名字来标示不同节点上相同名字的集合
-            String reply = jedis.get(set + ".blk." + ServerConf.serverId + "." + ssc.disk);
+            String reply = jedis.hget("blk." + set,ServerConf.serverId + "." + ssc.disk);
             if (reply != null) {
                 ssc.curBlock = Long.parseLong(reply);
                 ssc.newf = new File(ssc.path + "b" + ssc.curBlock);
@@ -481,7 +480,7 @@ public class StorePhoto {
                 // 把集合和它所在节点记录在redis的set里,方便删除,
                 // set.srvs表示set所在的服务器的位置
                 jedis.sadd(set + ".srvs", localHostName + ":" + serverport);
-                jedis.set(set + ".blk." + ServerConf.serverId + "." + ssc.disk, "" + ssc.curBlock);
+                jedis.hset("blk." + set,ServerConf.serverId + "." + ssc.disk, "" + ssc.curBlock);
                 ssc.offset = 0;
             }
             ssc.raf = new RandomAccessFile(ssc.newf, "rw");
@@ -547,7 +546,7 @@ public class StorePhoto {
                             baos.reset();
                         }
                         // 当前可写的块号加一
-                        jedis.incr(set + ".blk." + ServerConf.serverId + "." + ssc.disk);
+                        jedis.hincrBy("blk." + set, ServerConf.serverId + "." + ssc.disk, 1);
                         ssc.offset = 0;
                         ssc.raf = new RandomAccessFile(ssc.newf, "rw");
                         ssc.openTs = System.currentTimeMillis();
@@ -966,7 +965,7 @@ public class StorePhoto {
                         List<String> vals = jedis.mget(keya);
 
                         for (int i = 0; i < keya.length; i++) {
-                            String set = keya[i].split("\\.")[0];
+                            String set = keya[i].split("\\.")[1];
                             temp.put(set,
                                     new SetStats(jedis.hlen(set),
                                             temp.containsKey(set)

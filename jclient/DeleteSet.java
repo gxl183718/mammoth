@@ -22,7 +22,8 @@ public class DeleteSet {
         this.ca = ca;
     }
 
-    public void recycleSet(String dstr) throws ParseException, Exception {
+    //TODO:此功能停用，若启用务请必考虑慢查询带来的性能损耗，另获取全部sets逻辑错误--应为keys("`*");
+    /*public void recycleSet(String dstr) throws ParseException, Exception {
         DateFormat df = new SimpleDateFormat("yyyy-MM-dd");
         Date d = df.parse(dstr);
         Jedis jedis = ca.getPc().getRpL1().getResource();
@@ -33,6 +34,7 @@ public class DeleteSet {
         // get all sets
         TreeSet<String> temp = new TreeSet<String>();
         try {
+
             Set<String> keys = jedis.keys("*.blk.*");
 
             if (keys != null && keys.size() > 0) {
@@ -78,7 +80,7 @@ public class DeleteSet {
         } finally {
             ca.getPc().getRpL1().putInstance(jedis);
         }
-    }
+    }*/
 
     public void delSet(String set) throws Exception {
         RedisConnection rc = null;
@@ -180,14 +182,15 @@ public class DeleteSet {
         if (jedis == null) {
             throw new Exception("Cound not get avaliable Jedis instance.");
         }
-        List<String> ls = new ArrayList<String>();
+        List<String> ls = new ArrayList<>();
 
         try {
-            Set<String> keys = jedis.keys("mm.hb.*");
-
-            for (String hp : keys) {
-                String[] hostport = hp.substring(6).split(":");
-                ls.add(getServerInfo(hostport[0], Integer.parseInt(hostport[1])));
+            Set<String> allNodes = jedis.zrange("mm.active", 0, -1);
+            for (String node : allNodes) {
+                if (jedis.exists("mm.hb." + node)){
+                    String[] hostport = node.split(":");
+                    ls.add(getServerInfo(hostport[0], Integer.parseInt(hostport[1])));
+                }
             }
         } catch (JedisException je) {
             System.out.println("Jedis exception: " + je.getMessage());

@@ -2,7 +2,6 @@ package mammoth.jclient;
 
 import mammoth.jclient.PhotoClient.SocketHashEntry;
 import mammoth.common.MMConf;
-import redis.clients.jedis.Client;
 import redis.clients.jedis.HostAndPort;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Tuple;
@@ -732,7 +731,6 @@ System.out.println(c[0] + "............." + c[1]);
             for (int i = 0; i < dupnum; i++){
                 targets.add(keyList4Balance.get((idx + i) % keyList4Balance.size()));
             }
-//            targets.forEach(System.out::println);
         }else{
             for (int i = 0; i < dupnum; i++)
                 targets.add(keyList.get((idx + i) % keyList.size()));

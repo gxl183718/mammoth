@@ -316,14 +316,11 @@ public class PhotoClient {
         Jedis jedis = rpL1.getResource();
 
         try {
-            Set<String> keys = jedis.keys("mm.hb.*");
-            for (String hp : keys) {
-//                String ipport = jedis.hget("mm.dns", hp.substring(6));
-//                if (ipport == null)
-//                    ls.add(hp.substring(6));
-//                else
-//                    ls.add(ipport);
-                    ls.add(hp.substring((6)));
+            //替换慢查询(keys("mm.hb.*");
+            Set<String> allNodes = jedis.zrange("mm.active", 0, -1);
+            for (String node : allNodes) {
+                if (jedis.exists("mm.hb." + node))
+                    ls.add(node);
             }
         } catch (JedisException e) {
             System.out.println("Get mm.hb.* failed: " + e.getMessage());
@@ -784,6 +781,8 @@ public class PhotoClient {
 //                    if (conf.isLogDupInfo())
 //                        jedis.hincrBy("mm.dedup.info", set + "@" + md5, 1);
                     return info;
+                }else {
+                    rc.rp.getBalanceTarget().incrementAndGet();
                 }
             } catch (JedisConnectionException e) {
                 System.out.println(set + "@" + md5

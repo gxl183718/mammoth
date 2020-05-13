@@ -13,7 +13,6 @@ public class RedisPool {
 	private MMConf conf;
 	private JedisSentinelPool jsp = null;
 	private JedisPool jp = null;
-	private JedisCluster jc = null;
 	private String masterName = null;
 	private AtomicLong alloced = new AtomicLong(0);
 	private AtomicLong balanceTarget = new AtomicLong(0);

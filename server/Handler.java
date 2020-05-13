@@ -249,7 +249,7 @@ public class Handler implements Runnable {
                         break;
                     }
                     case ActionType.FEATURESEARCH: {
-                        int feature_size = dis.readInt();
+                        /*int feature_size = dis.readInt();
                         int obj_len = dis.readInt();
                         List<Feature> features = new ArrayList<Feature>(
                                 feature_size);
@@ -275,7 +275,7 @@ public class Handler implements Runnable {
                         } catch (IOException e) {
                             e.printStackTrace();
                             dos.writeInt(-1);
-                        }
+                        }*/
                         break;
                     }
                     case ActionType.XSEARCH: {

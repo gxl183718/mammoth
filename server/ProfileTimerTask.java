@@ -62,7 +62,6 @@ public class ProfileTimerTask extends TimerTask {
         if (jedis == null)
             throw new JedisException("Get default jedis instance failed.");
         try {
-//            hbkey = "mm.hb." + conf.getNodeName() + ":" + conf.getServerPort();
             hbkey = "mm.hb." + conf.getOutsideIP() + ":" + conf.getServerPort();
             Pipeline pi = jedis.pipelined();
             pi.set(hbkey, "1");
@@ -290,9 +289,16 @@ public class ProfileTimerTask extends TimerTask {
         Jedis jedis = null;
         try {
             jedis = StorePhoto.getRpL1(conf).getResource();
-            Set<String> keys = jedis.keys("mm.hb.*");
-            for (String hp : keys) {
-                ls.add(hp.substring(6).split(":")[0] + ":" + conf.getHttpPort());
+
+            Set<String> servers = jedis.zrange("mm.active", 0, -1);
+            Set<String> aServers = new HashSet<>();
+            for (String s : servers) {
+                if (jedis.exists("mm.hb." + s)){
+                    aServers.add(s);
+                }
+            }
+            for (String hp : servers) {
+                ls.add(hp.split(":")[0] + ":" + conf.getHttpPort());
             }
             Map<Long, String> activeMap = new HashMap<>();
             for(String server : ls){

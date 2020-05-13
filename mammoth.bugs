@@ -12,9 +12,16 @@
     1.元数据（redisL1、redisL2）中慢查询：
         当前问题：当前为sentinel模式，一个master 一个slave，读写都落在master节点，当数据量越来越大时慢查询会严重影响读写性能；
         升级方案：替换或删除L1和L2中的慢查询，redis master-slave读写分离，master只写数据，slave只读数据；
+        细节：         1.获取activeServer（mm.hb.*)————将通过keys("mm.hb.*")获取改为通过zrange获取所有server，再判断"mm.hb.
+                        $server"是否存在的方式；
+                      2.每块磁盘写入的块的偏移信息（blk.*）————string类型改为hash类型；
+                      3.数据统计线程（MMCountThread)————不启用；
+                      4.读写分离————从节点读取数据存在延迟，且没有成熟的读写分离客户端，放弃使用；
     2.元数据新建set分配到L2中离散策略更新：
         当前问题：现有策略为按照L2 index轮询，所有客户端都会按照确定的顺序分配set到L2，导致数据分配失衡；
-        升级方案：提供loadBalance策略，根据内存使用率分配新建set所在L2节点；
+        升级方案：1.提供load_balance策略，每个客户端内根据写入到各L2中的数据量做负载均衡；2.修改round_robin策略，使第一次生成
+            的set随机分配到L2节点；
+        细节：load_balance启动方式————redis L1中set “mm.alloc.policy” “load_balance”；
     3.客户端生成key逻辑调整：
         当前问题：当前按照时间同一个小时内的数据落在同一个set（当前小时:00:00所对应的时间戳）中，所以当前小时数据的读写都落在一个
             redis L2中，导致单个redis L2服务数据访问过热；
@@ -36,3 +43,5 @@
     8.client初始化问题：
         当前问题：client初始化时会初始化到服务端的连接，在数据节点异常时可能导致客户端初始化过久从而造成调用方TimeOUt；
         升级方案：client在读写数据时初始化连接，连接设置timeOut时间；
+    9.容器获取host ip问题：
+        当前问题：当前

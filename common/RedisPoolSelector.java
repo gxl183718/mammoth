@@ -4,6 +4,7 @@ import redis.clients.jedis.Jedis;
 import redis.clients.jedis.exceptions.JedisException;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
@@ -23,7 +24,7 @@ public class RedisPoolSelector {
 		ROUND_ROBIN, LOAD_BALANCE,
 	}
 	private ALLOC_POLICY type = ALLOC_POLICY.ROUND_ROBIN;
-	private int lastIdx = 0;
+	private int lastIdx = -1;
 	private MMConf conf;
 	private RedisPool rpL1;
 	private ConcurrentHashMap<String, RedisPool> rpL2 =
@@ -126,6 +127,11 @@ public class RedisPoolSelector {
 			case ROUND_ROBIN:
 				ArrayList<String> ids = new ArrayList<String>();
 				ids.addAll(rpL2.keySet());
+				//第一次启动客户端创建的第一个set足够随机，避免客户端启停带来的元数据向rpL2.keySet()中靠前的节点堆积；
+				if (lastIdx == -1){
+					Random random = new Random();
+					lastIdx = random.nextInt(ids.size());
+				}
 				if (lastIdx >= ids.size())
 					lastIdx = 0;
 				if (ids.size() > 0) {

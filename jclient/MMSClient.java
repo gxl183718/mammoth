@@ -974,7 +974,7 @@ public class MMSClient {
                     e.printStackTrace();
                 }
             }
-            if (o.flag.equals("-recycle")) {
+            /*if (o.flag.equals("-recycle")) {
                 String daystr = o.opt;
                 System.out.println("Provide the last day to be deleted.");
                 System.out.println("get args: day str= " + daystr);
@@ -984,7 +984,7 @@ public class MMSClient {
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
-            }
+            }*/
             if (o.flag.equals("-getserverinfo")) {
                 System.out.println("get server info.");
                 DeleteSet ds = new DeleteSet(pcInfo);

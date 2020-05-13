@@ -332,10 +332,11 @@ public class ServerHealth extends TimerTask {
 
 	/**
 	 * scrub set --> if there is no reference in metaData,del this block in disk.
+	 * TODO:功能停用，若启用务必考虑慢查询带来的性能影响
 	 * @return
 	 * @throws Exception
 	 */
-	private int scrubSets() throws Exception {
+	/*private int scrubSets() throws Exception {
 		TreeSet<String> sets = new TreeSet<String>();
 		int err = 0;
 
@@ -368,7 +369,7 @@ public class ServerHealth extends TimerTask {
 		}
 
 		return err;
-	}
+	}*/
 
 	/**
 	 * scrub set
@@ -398,7 +399,7 @@ public class ServerHealth extends TimerTask {
 				// a block
 				// file false positive.
 				for (String d : conf.getStoreArray()) {
-					String _blk = jedis.get(set + ".blk." + ServerConf.serverId + "." + d);
+					String _blk = jedis.hget("blk." + set, ServerConf.serverId + "." + d);
 					if (_blk != null)
 						blockId.put(d, Long.parseLong(_blk));
 				}
