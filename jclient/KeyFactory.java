@@ -15,7 +15,8 @@ public class KeyFactory {
         OtherZB("中标文件"),OtherYB("样本文件"),OtherPYQ("朋友圈文件"),OtherJMXF("界面下发文件"),OtherJMFW("界面服务文件"),OtherSJCY("随机采样文件"),
         ZG("王志国wx专用"),WL("王志国wb专用"),
         ImageJGH("广恒图片"),VideoJGH("广恒视频"),
-        ImageWB("微博图片"),AudioWB("微博语音"),VideoWB("微博视频"),OtherWB("微博文件");
+        ImageWB("微博图片"),AudioWB("微博语音"),VideoWB("微博视频"),OtherWB("微博文件"),
+        ImageTEST("测试图片"),AudioTEST("测试语音"),VideoTEST("测试视频"),OtherTEST("测试文件");
         String dbName;
         KeyType(String dbName) {
         }
@@ -25,9 +26,21 @@ public class KeyFactory {
         }
     }
 
-    public static String getType(KeyType keyType){
+    private static String getType(KeyType keyType){
         String type;
         switch (keyType){
+            case ImageTEST:
+                type = "itest";
+                break;
+            case AudioTEST:
+                type = "atest";
+                break;
+            case VideoTEST:
+                type = "vtest";
+                break;
+            case OtherTEST:
+                type = "otest";
+                break;
             case ImageZB:
                 type = "iz";
                 break;

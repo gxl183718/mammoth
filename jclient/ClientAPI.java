@@ -16,6 +16,7 @@ import java.security.NoSuchAlgorithmException;
 import java.text.DateFormat;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -338,17 +339,6 @@ public class ClientAPI {
                     + "' to LONG failed.");
         }
     }
-    private static byte[] readBytes(int count, InputStream istream) throws IOException {
-        byte[] buf = new byte[count];
-//        istream.read(buf);
-        int n = 0;
-
-        while (count > n) {
-            n += istream.read(buf, n, count - n);
-        }
-
-        return buf;
-    }
 
     private boolean getActiveMMS() {
         Jedis jedis = pc.getRpL1().getResource();
@@ -656,17 +646,6 @@ public class ClientAPI {
 
 
     /**
-     * 同步写,对外提供的接口 It is thread-safe!
-     * @param key
-     * @param content
-     * @return
-     * @throws Exception
-     */
-    public String put(String key, byte[] content) throws Exception {
-        return put(key, content, null);
-    }
-
-	/**
      * 同步写, It is thread-safe!
      *
      * @param key
@@ -706,99 +685,55 @@ public class ClientAPI {
     }
 
     /**
-     * 生成md5
-     * @param bytes
-     * @return
-     * @throws NoSuchAlgorithmException
-     */
-    private  String getMd5(byte[] bytes) throws NoSuchAlgorithmException {
-        MessageDigest md;
-        md = MessageDigest.getInstance("md5");
-        md.update(bytes);
-        byte[] mdbytes = md.digest();
-        StringBuffer sb = new StringBuffer();
-        for (int j = 0; j < mdbytes.length; j++) {
-            sb.append(Integer.toString((mdbytes[j] & 0xff) + 0x100, 16).substring(1));
-        }
-        return sb.toString();
-    }
-
-    /**
-     * 为文件生成md5
-     * @param file
-     * @return
-     * @throws IOException
-     * @throws NoSuchAlgorithmException
-     */
-    private String getMd5(File file) throws IOException, NoSuchAlgorithmException {
-        int M = 1024 * 1024;
-        long lineOfBig = 20L * M;
-        byte[] b2 = null;
-        RandomAccessFile raf = null;
-        FileInputStream fis = null;
-        MessageDigest md;
-        md = MessageDigest.getInstance("md5");
-        String ss = file.getName() + file.length();
-        String md5 = "";
-        byte[] b1 = ss.getBytes();
-        byte[] bs = new byte[10 * M + b1.length];
-        try {
-            fis = new FileInputStream(file);
-            raf = new RandomAccessFile(file, "r");
-            if (file.length() > lineOfBig) {
-                b2 = new byte[10 * M];
-                raf.read(b2, 0, 2 * M);
-                raf.seek(file.length() / 4 - 1 * M);
-                raf.read(b2, 2 * M, 2 * M);
-                raf.seek(file.length() / 2 - 1 * M);
-                raf.read(b2, 4 * M, 2 * M);
-                raf.seek(file.length() / 4 * 3 - 1 * M);
-                raf.read(b2, 6 * M, 2 * M);
-                raf.seek(file.length() - 2 * M);
-                raf.read(b2, 8 * M, 2 * M);
-                System.arraycopy(b2, 0, bs, 0, 10 * M);
-                System.arraycopy(b1, 0, bs, 10 * M, ss.length());
-            } else {
-                bs = new byte[(int) file.length()];
-                fis.read(bs);
-            }
-            md.update(bs);
-            byte[] mdbytes = md.digest();
-            StringBuffer sb = new StringBuffer();
-            for (int j = 0; j < mdbytes.length; j++) {
-                sb.append(Integer.toString((mdbytes[j] & 0xff) + 0x100, 16).substring(1));
-            }
-            md5 = sb.toString();
-            //System.out.println(md5);
-        } catch (FileNotFoundException e1) {
-            // TODO Auto-generated catch block
-            e1.printStackTrace();
-        } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        } finally {
-            raf.close();
-            fis.close();
-        }
-        return md5;
-    }
-
-    /**
-     * 为文件生成key
-     * @param file
+     * 同步写,对外提供的接口 It is thread-safe!
+     * @param key
+     * @param content
      * @return
      * @throws Exception
      */
-    private String getKeyForFile(File file) throws Exception{
-        String key = getMd5(file);
-        String fileType = new MimetypesFileTypeMap().getContentType(file);
-        char t = 'o';
-        if (!fileType.startsWith("app"))
-            t = fileType.charAt(0);
-        long time = System.currentTimeMillis();
-        key = t + (time - time % 3600000) / 1000 + "@" + key;
-        return key;
+    public String put(String key, byte[] content) throws Exception {
+        return put(key, content, null);
     }
+
+    /**
+     *
+     * @param type
+     * @param time
+     * @param md5
+     * @param content
+     * @return
+     * @throws Exception
+     */
+    public String put(KeyFactory.KeyType type, long time, String md5, byte[] content) throws Exception {
+        String key = KeyFactory.getInstance(type, md5, time);
+        return put(key, content);
+    }
+
+    /**
+     *
+     * @param type
+     * @param md5
+     * @param content
+     * @return
+     * @throws Exception
+     */
+    public String put(KeyFactory.KeyType type, String md5, byte[] content) throws Exception {
+        String key = KeyFactory.getInstance(type, md5, Instant.now().getEpochSecond());
+        return put(key, content);
+    }
+
+    /**
+     *
+     * @param type
+     * @param content
+     * @return
+     * @throws Exception
+     */
+    public String put(KeyFactory.KeyType type, byte[] content) throws Exception {
+        String key = KeyFactory.getInstance(type, content);
+        return put(key, content);
+    }
+
     /**
      * 
      * @param localFilePath
@@ -816,7 +751,8 @@ public class ClientAPI {
      * @throws Exception
      */
     public String uploadFile(File file) throws Exception {
-    	String key = getKeyForFile(file);
+        //TODO:key need to be create
+    	String key = "";
         String info = uploadFile(file, key);
         if (info == null)
         	key = null;
@@ -992,38 +928,31 @@ public class ClientAPI {
         return pc.getFileInfo(key);
     }
 
-//    /**
-//     * 从偏移offset读取长度为length的数据,若一次读取整个小文件则把len参数设为-1
-//     *
-//     * @param key
-//     * @param off
-//     * @param len
-//     * @return
-//     * @throws Exception
-//     */
-//    public byte[] downloadFile(String key, long off, int len) throws Exception {
-//    	if(len < 0 ){
-//    		return get(key);
-//    	}
-//        return get(key, off, len);
-//    }
-
-//    private byte[] get(String key, long offset, int length) throws Exception {
-//        if (key == null)
-//            throw new Exception("key can not be null.");
-//        String[] keys = key.split("@|#");
-//        //TODO:1
-//        if (keys.length == 2)
-//            return pc.getPhoto(keys[0], keys[1], offset, length);
-//        //TODO:2 useless
-//        else if (keys.length == pc.getConf().getVlen())
-//            return pc.searchByInfo(key, keys, offset, length);
-//        //TODO:3 useless
-//        else if (keys.length % pc.getConf().getVlen() == 0) // 如果是拼接的元信息，分割后长度是7的倍数
-//            return pc.searchPhoto(key, offset, length);
-//        else
-//            throw new Exception("wrong format of key:" + key);
-//    }
+    /**
+     *
+     * @param key
+     * @param offset
+     * @param length
+     * @return
+     * @throws Exception
+     */
+    private byte[] get(String key, long offset, int length) throws Exception {
+        if (key == null)
+            throw new Exception("key can not be null.");
+        String[] keys = key.split("@|#");
+        /*//TODO:1
+        if (keys.length == 2)
+            return pc.getPhoto(keys[0], keys[1], offset, length);
+        //TODO:2 useless
+        else if (keys.length == pc.getConf().getVlen())
+            return pc.searchByInfo(key, keys, offset, length);
+        //TODO:3 useless
+        else if (keys.length % pc.getConf().getVlen() == 0) // 如果是拼接的元信息，分割后长度是7的倍数
+            return pc.searchPhoto(key, offset, length);
+        else
+            throw new Exception("wrong format of key:" + key);*/
+        return null;
+    }
 
     /**
      * 同步取，对外提供的接口 It is thread-safe
@@ -1115,14 +1044,6 @@ public class ClientAPI {
         }
         return pc.mget(keys, cookies);
     }
-
-    public ResultSet objectSearch(List<Feature> features, byte[] obj,
-                                  List<String> specified_servers) throws Exception {
-        if (features == null || features.size() == 0)
-            throw new Exception("Invalid or empty features list.");
-        return pc.objectSearch(features, obj, specified_servers);
-    }
-
 
     /**
      * 同步删，对外提供的接口 It is thread-safe
