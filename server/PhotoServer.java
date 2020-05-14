@@ -136,6 +136,7 @@ public class PhotoServer {
                 String pwd = new String(readBytes(passWordLength, dis));
                 if(!ServerConf.userName.equals(name) || !ServerConf.passWord.equals(pwd)){
                     dos.writeInt(-1);
+                    s.close();
                     continue;
                 }else{
                     dos.writeInt(1);

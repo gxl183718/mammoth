@@ -213,6 +213,7 @@ public class ClientAPI {
         } else {
                 List<String> active = pc.getActiveMMSByHB();
                 Set<String> activeMMS = new TreeSet<String>();
+
                 // BUG-XXX: getActiveMMSByHB() return the DNSed server name, it
                 // might be different
                 // with saved server name. Thus, if a server changes its ip
@@ -238,7 +239,6 @@ public class ClientAPI {
                                         .getSockPerServer());
                                 try {
                                     sock.setTcpNoDelay(true);
-System.out.println(c[0] + ">>>>>>>" + c[1]);
                                     sock.connect(new InetSocketAddress(c[0],
                                             Integer.parseInt(c[1])));
                                     she.addToSockets(
@@ -256,7 +256,10 @@ System.out.println(c[0] + ">>>>>>>" + c[1]);
                                     sock.getOutputStream().flush();
                                     DataInputStream dis = new DataInputStream(sock.getInputStream());
                                     int num = dis.readInt();
-                                    if (num == -1) System.out.println("认证失败，客户端与服务端版本不一致！！");
+                                    if (num == -1) {
+                                        System.out.println("认证失败，客户端与服务端版本不一致！！");
+                                        sock.close();
+                                    }
                                     else System.out.println("认证成功！");
                                     if (socketHash.putIfAbsent(a, she) != null) {
                                         she.clear();
@@ -346,43 +349,40 @@ System.out.println(c[0] + ">>>>>>>" + c[1]);
 
         return buf;
     }
+
     private boolean getActiveMMS() {
         Jedis jedis = pc.getRpL1().getResource();
         if (jedis == null)
             return false;
 
         try {
-            Set<Tuple> active = jedis.zrangeWithScores("mm.active", 0, -1);
-            Set<String> activeMMS = new TreeSet<>();
+            Set<Tuple> servers = jedis.zrangeWithScores("mm.active", 0, -1);
+            List<String>  active = pc.getActiveMMSByHB();
             balance = jedis.get("mm.balance") == null? false:true;
-            if (active != null && active.size() > 0) {
-                for (Tuple t : active) {
-                    // translate ServerName to IP address
-//                    String ipport = jedis.hget("mm.dns", t.getElement());
-                    String ipport = t.getElement();
-                    // update server ID->Name map
-//                    if (ipport == null) {
-                        pc.addToServers((long) t.getScore(), t.getElement());
-//                        ipport = t.getElement();
-//                    } else
-//                        pc.addToServers((long) t.getScore(), ipport);
-                    String[] c = ipport.split(":");
-                    if (c.length == 2 && socketHash.get(ipport) == null) {
+            if (servers != null && servers.size() > 0) {
+                for (Tuple t : servers) {
+                    pc.addToServers((long) t.getScore(), t.getElement());
+                }
+            }
+            for (String a : active) {
+                String[] c = a.split(":");
+                if (c.length == 2) {
+                    if (socketHash.get(a) == null) {
+                        // new MMS?
                         Socket sock = new Socket();
                         SocketHashEntry she = new SocketHashEntry(c[0],
                                 Integer.parseInt(c[1]), pc.getConf()
                                 .getSockPerServer());
-                        activeMMS.add(ipport);
                         try {
                             sock.setTcpNoDelay(true);
-System.out.println(c[0] + "............." + c[1]);
-                            sock.connect(new InetSocketAddress(c[0], Integer
-                                    .parseInt(c[1])));
+                            sock.connect(new InetSocketAddress(c[0],
+                                    Integer.parseInt(c[1])));
                             she.addToSockets(
                                     sock,
-                                    new DataInputStream(sock.getInputStream()),
-                                    new DataOutputStream(sock.getOutputStream()));
-
+                                    new DataInputStream(sock
+                                            .getInputStream()),
+                                    new DataOutputStream(sock
+                                            .getOutputStream()));
                             //认证信息
                             byte[] bytes = new byte[2];
                             bytes[0] = (byte) ClientConf.userName.length();
@@ -390,38 +390,29 @@ System.out.println(c[0] + "............." + c[1]);
                             sock.getOutputStream().write(bytes);
                             sock.getOutputStream().write((ClientConf.userName + ClientConf.passWord).getBytes());
                             sock.getOutputStream().flush();
-
                             DataInputStream dis = new DataInputStream(sock.getInputStream());
                             int num = dis.readInt();
-
-                            if (num == -1) System.out.println("认证失败，客户端与服务端版本不一致！！");
+                            if (num == -1) {
+                                System.out.println("认证失败，客户端与服务端版本不一致！！");
+                                sock.close();
+                            }
                             else System.out.println("认证成功！");
-                            if (socketHash.putIfAbsent(ipport, she) != null) {
+                            if (socketHash.putIfAbsent(a, she) != null) {
                                 she.clear();
                             }
                         } catch (SocketException e) {
-                            System.out.println("[WARN] Connect to MMS " + c[0]
-                                            + ":" + c[1] + " failed: "
-                                            + e.getMessage());
                             e.printStackTrace();
                             continue;
                         } catch (NumberFormatException e) {
-                            System.out.println("[FAIL] Transform string port("
-                                    + c[1] + ") to integer failed: "
-                                    + e.getMessage());
                             e.printStackTrace();
                             continue;
                         } catch (IOException e) {
-                            System.out.println("[WARN] IO Error for MMS "
-                                    + c[0] + ":" + c[1] + " failed: "
-                                    + e.getMessage());
                             e.printStackTrace();
                             continue;
                         }
                     }
                 }
             }
-
             if(balance){
                 synchronized (keyList4Balance){
                     keyList4Balance.clear();
@@ -429,11 +420,8 @@ System.out.println(c[0] + "............." + c[1]);
                 }
             }
             synchronized (keyList) {
-                keyList.addAll(activeMMS);
+                keyList.addAll(active);
                 keyList.retainAll(socketHash.keySet());
-                //初始化keyList4Balance
-//                if(balance)
-//                    initKeyList4Balance();
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -622,8 +610,6 @@ System.out.println(c[0] + "............." + c[1]);
                     try {
                         r = pc.syncStorePhoto(keys[0], keys[1], content, she,
                                 nodedup, content.length, 0, fn);
-                        long time2 = System.currentTimeMillis();
-
                         if ('#' == r.charAt(1))
                             r = r.substring(2);
                         nodedup = r.split("#").length < pc.getConf().getDupNum();
@@ -640,9 +626,7 @@ System.out.println(c[0] + "............." + c[1]);
                                 + failed.get(server) + " times.");
                     }
                 } else {
-                    // this means target server has no current usable
-                    // connection, we try to use
-                    // another server
+                    //this means target server has no current usable connection.
                 }
             }
             if (saved.size() < targetnr) {
@@ -653,8 +637,9 @@ System.out.println(c[0] + "............." + c[1]);
                         remains.remove(e.getKey());
                     }
                 }
-                if (remains.size() == 0)
+                if (remains.size() == 0) {
                     break;
+                }
                 targets.clear();
                 for (int i = saved.size(); i < targetnr; i++) {
                     targets.add(remains.get(rand.nextInt(remains.size())));
@@ -670,24 +655,6 @@ System.out.println(c[0] + "............." + c[1]);
     }
 
 
-    /**
-     * 同步写， 指定 i,a,v,t,o 类型，自动生成key
-     * @param content
-     * @param mmType
-     * @return
-     * @throws Exception
-     */
-//    public String put(byte[] content, MMType mmType) throws Exception {
-//        String type = ClientAPI.getMMTypeSymbol(mmType);
-//        String md5 = getMd5(content);
-//        long time = System.currentTimeMillis();
-//        String key = type + (time - time % 3600000) / 1000 + "@" + md5;
-//        String info = put(key, content, null);
-//
-//        return key;
-////        return info;
-//    }
-//
     /**
      * 同步写,对外提供的接口 It is thread-safe!
      * @param key

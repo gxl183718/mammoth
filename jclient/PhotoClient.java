@@ -7,6 +7,7 @@ import mammoth.common.RedisPoolSelector;
 import mammoth.common.RedisPoolSelector.RedisConnection;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Pipeline;
+import redis.clients.jedis.Tuple;
 import redis.clients.jedis.exceptions.JedisConnectionException;
 import redis.clients.jedis.exceptions.JedisException;
 
@@ -139,7 +140,11 @@ public class PhotoClient {
                                 socket.getOutputStream().flush();
                                 DataInputStream dis = new DataInputStream(socket.getInputStream());
                                 int num = dis.readInt();
-                                if (num == -1) System.out.println("认证失败，客户端与服务端版本不一致！！");
+                                if (num == -1) {
+                                    System.out.println("认证失败，客户端与服务端版本不一致！！");
+                                    socket.close();
+                                    break;
+                                }
                                 else System.out.println("认证成功！");
                             }
 
@@ -300,6 +305,10 @@ public class PhotoClient {
 
     public void addToServers(long id, String server) {
         servers.put(id, server);
+    }
+
+    public void clearServers(){
+        servers.clear();
     }
 
     public Map<String, SocketHashEntry> getSocketHash() {
@@ -902,67 +911,6 @@ public class PhotoClient {
             return false;
     }
 
-    private byte[] getPhotoFromSS(String set, String md5) throws IOException {
-        SocketHashEntry searchSocket = null;
-        String[] sers = new String[2];
-        sers[0] = servers.get(ss_id);
-        sers[1] = servers.get(ls_id);
-        String ser = null;
-        for (String server : sers) {
-            if (server == null) {
-                continue;
-            }
-            try {
-                searchSocket = socketHash.get(server);
-                searchSocket = getSocketHashEntry(searchSocket, server);
-            } catch (IOException e) {
-                System.out.println("Invalid server name or port: " + server + " -> " + e.getMessage());
-                continue;
-            }
-            ser = server;
-            break;
-        }
-        if (ser == null) {
-            throw new IOException("Secondary Server idx " + ss_id + " and " + ls_id
-                    + " can't be resolved.");
-        }
-        // action, set, md5
-        byte[] header = new byte[4];
-        header[0] = ActionType.XSEARCH;
-        header[1] = (byte) set.getBytes().length;
-        header[2] = (byte) md5.getBytes().length;
-        long id = searchSocket.getFreeSocket();
-        if (id == -1)
-            throw new IOException("Could not get free socket for server: " + ser);
-
-        XSearchResult xsr = null;
-        try {
-            searchSocket.map.get(id).dos.write(header);
-
-            searchSocket.map.get(id).dos.writeBytes(set);
-            searchSocket.map.get(id).dos.writeBytes(md5);
-            searchSocket.map.get(id).dos.writeLong(0);
-            searchSocket.map.get(id).dos.writeInt(-1);
-            searchSocket.map.get(id).dos.flush();
-
-            xsr = __handleInput4XSearch(searchSocket.map.get(id).dis);
-            searchSocket.setFreeSocket(id);
-        } catch (Exception e) {
-            e.printStackTrace();
-            // remove this socket do reconnect?
-            searchSocket.delFromSockets(id);
-        }
-        if (xsr == null) {
-            throw new IOException("Invalid response from mm server:" + ser);
-        } else if (xsr.result != null) {
-            return xsr.result;
-        } else if (xsr.redirect_info != null) {
-            // we should redirect the request now
-            return searchPhoto(xsr.redirect_info);
-        } else {
-            throw new IOException("Internal error in mm server:" + ser);
-        }
-    }
 
     private byte[] getPhotoFromSS(String set, String md5, long offset, int length) throws IOException {
         SocketHashEntry searchSocket = null;
@@ -1038,16 +986,11 @@ public class PhotoClient {
     public byte[] getPhoto(String set, String md5) throws IOException {
         String info = null;
         RedisConnection rc = null;
-//        addHeat(set,md5);
         try {
             rc = rps.getL2(set, false);
             Jedis jedis = rc.jedis;
             if (jedis != null) {
-                if (jedis.hexists(set, md5)) {
-                    info = jedis.hget(set, md5);
-                } else {
-                    return getPhotoFromSS(set, md5); // Xsearch--getPhoto(MMS)
-                }
+                info = jedis.hget(set, md5);
             }
         } catch (JedisConnectionException e) {
             System.out.println(set + "@" + md5
@@ -1064,27 +1007,13 @@ public class PhotoClient {
         if (info == null)
             throw new IOException(set + "@" + md5 + " doesn't exist in MM server or connection broken;");
         else
-            return _searchPhoto(info);
-    }
-
-
-    private byte[] _searchPhoto(String info) throws IOException {
-        if (info.split("#")[0].equals("2")) {// 当接收到删除请求，把redis中info前加删除状态"2"，swapout时删除rocksdb中数据；
-            return null;
-        } else {
-            if ('#' == info.charAt(1)) {
-                info = info.substring(2);
-            }
-        }
-        return searchPhoto(info);
+            return searchPhoto(info);
     }
 
     /**
      * infos是拼接的元信息，各个元信息用#隔开
      */
     byte[] searchPhoto(String infos) throws IOException {
-        if(infos.split("@").length == 2)
-            getPhotoFromSS(infos.split("@")[0], infos.split("@")[1]);
         byte[] r = null;
         for (String info : infos.split("#")) {
             try {
@@ -1102,6 +1031,29 @@ public class PhotoClient {
         return r;
     }
 
+
+    private boolean refreshServers(){
+        Jedis jedis = rpL1.getResource();
+        if (jedis == null)
+            return false;
+        try {
+            Set<Tuple> newServers = jedis.zrangeWithScores("mm.active", 0, -1);
+            synchronized (servers) {
+                if (newServers != null && newServers.size() > 0) {
+                    clearServers();
+                    for (Tuple t : newServers) {
+                        addToServers((long) t.getScore(), t.getElement());
+                    }
+                    return true;
+                }
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }finally {
+            getRpL1().putInstance(jedis);
+        }
+        return false;
+    }
     /**
      * info是一个文件的元信息，没有拼接的
      */
@@ -1112,9 +1064,15 @@ public class PhotoClient {
         }
         SocketHashEntry searchSocket = null;
         String server = servers.get(Long.parseLong(infos[2]));
-        if (server == null)
-            throw new IOException("Server idx " + infos[2]
+        if (server == null){
+            //maybe the system added new nodes, we should refresh 'servers'
+            //and try it again;
+            refreshServers();
+            server = servers.get(Long.parseLong(infos[2]));
+            if (server == null)
+                throw new IOException("Server idx " + infos[2]
                     + " can't be resolved.");
+        }
 
         searchSocket = socketHash.get(server);
         searchSocket = getSocketHashEntry(searchSocket, server);
@@ -1162,7 +1120,19 @@ public class PhotoClient {
                 searchSocket.addToSocketsAsUsed(socket, new DataInputStream(
                                 socket.getInputStream()),
                         new DataOutputStream(socket.getOutputStream()));
-
+                byte[] bytes = new byte[2];
+                bytes[0] = (byte) ClientConf.userName.length();
+                bytes[1] = (byte) ClientConf.passWord.length();
+                socket.getOutputStream().write(bytes);
+                socket.getOutputStream().write((ClientConf.userName + ClientConf.passWord).getBytes());
+                socket.getOutputStream().flush();
+                DataInputStream dis = new DataInputStream(socket.getInputStream());
+                int num = dis.readInt();
+                if (num == -1) {
+                    System.out.println("认证失败，客户端与服务端版本不一致！！");
+                    socket.close();
+                }
+                else System.out.println("认证成功！");
                 SocketHashEntry old = socketHash.putIfAbsent(server,
                         searchSocket);
                 if (old != null) {
