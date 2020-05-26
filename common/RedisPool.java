@@ -55,11 +55,15 @@ public class RedisPool {
 				//for (int i = 0;i < t.getStackTrace().length;i ++){
 				//	System.out.println("..........." + t.getStackTrace()[i].getMethodName());
 				//}
-				JedisPoolConfig c = new JedisPoolConfig();
-				jsp = new JedisSentinelPool(masterName, conf.getSentinels(), c, 
-						conf.getRedisTimeout());
-				System.out.println("New sentinel pool @ " + masterName);
-				return jsp.getResource();
+				synchronized (this){
+					if (jsp == null){
+						JedisPoolConfig c = new JedisPoolConfig();
+						jsp = new JedisSentinelPool(masterName, conf.getSentinels(), c,
+								conf.getRedisTimeout());
+						System.out.println("New sentinel pool @ " + masterName);
+					}
+					return jsp.getResource();
+				}
 			}
 		}
 		case CLUSTER: {
