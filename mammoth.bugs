@@ -12,13 +12,14 @@
     1.元数据（redisL1、redisL2）中慢查询：
         当前问题：当前为sentinel模式，一个master 一个slave，读写都落在master节点，当数据量越来越大时慢查询会严重影响读写性能；
         升级方案：替换或删除L1和L2中的慢查询，redis master-slave读写分离，master只写数据，slave只读数据；
-        细节：         1.获取activeServer（mm.hb.*)————将通过keys("mm.hb.*")获取改为通过zrange获取所有server，再判断"mm.hb.
-                        $server"是否存在的方式；
-                      2.每块磁盘写入的块的偏移信息（blk.*）————string类型改为hash类型；
-                      3.数据统计线程（MMCountThread)————不启用；
+        细节：         1.获取activeServer（mm.hb.*)————将通过keys("mm.hb.*")获取改为通过zrange获取所有server，再判断"mm.hb. $server"是否存在的方式，时间复杂度从O(N)变为O(1);
+                      2.每块磁盘写入的块的偏移信息（redis L2 中‘*.blk.*’类型的数据）————string类型改为hash类型；
+                      3.数据统计线程（MMCountThread)会便利所有元数据————不启用,改为通过日志统计；
                       4.读写分离————从节点读取数据存在延迟，且没有成熟的读写分离客户端，放弃使用；
+
     2.元数据新建set分配到L2中离散策略更新：
-        当前问题：现有策略为按照L2 index轮询，所有客户端都会按照确定的顺序分配set到L2，导致数据分配失衡；
+        当前问题：现有策略为按照L2 index轮询，所有客户端都会按照固定redis L2顺序分配set到L2，导致set创建总是从第一个L2开始到最后一个L2结束，由此带来客户端启停导致的set数量集中在L2
+            中顺序靠前节点；
         升级方案：1.提供load_balance策略，每个客户端内根据写入到各L2中的数据量做负载均衡；2.修改round_robin策略，使第一次生成
             的set随机分配到L2节点；
         细节：load_balance启动方式————redis L1中set “mm.alloc.policy” “load_balance”；
@@ -42,6 +43,6 @@
         升级方案：客户端添加刷新servers；
     8.client初始化问题：
         当前问题：client初始化时会初始化到服务端的连接，在数据节点异常时可能导致客户端初始化过久从而造成调用方TimeOUt；
-        升级方案：client在读写数据时初始化连接，连接设置timeOut时间；
+        升级方案：只初始化active server socket connection；
     9.容器获取host ip问题：
         当前问题：当前

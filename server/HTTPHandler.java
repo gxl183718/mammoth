@@ -1747,7 +1747,7 @@ public class HTTPHandler extends AbstractHandler {
 //				elements = re.getResult().stream().map(Entry::getKey).collect(Collectors.toSet());
 
 				if (currentPage+1 == pageLsit.size()) {
-					cursor = re.getStringCursor();
+					cursor = re.getCursor();
 					if (!"0".equals(cursor)) {
 						pageLsit.add(cursor);
 					} else {

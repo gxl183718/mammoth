@@ -1005,7 +1005,7 @@ public class StorePhoto {
                         for (Entry<String, String> entry2 : r.getResult()) {
                             di.put(entry2.getKey(), entry2.getValue());
                         }
-                        cursor = r.getStringCursor();
+                        cursor = r.getCursor();
                         if (cursor.equalsIgnoreCase("0")) {
                             isDone = true;
                         }

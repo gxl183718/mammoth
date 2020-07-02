@@ -226,7 +226,7 @@ public class ServerHealth extends TimerTask {
 						for (Entry<String, String> entry : r.getResult()) {
 							infos.put(entry.getKey(), entry.getValue());
 						}
-						cursor = r.getStringCursor();
+						cursor = r.getCursor();
 						if (cursor.equalsIgnoreCase("0")) {
 							isDone = true;
 						}
@@ -463,7 +463,7 @@ public class ServerHealth extends TimerTask {
 							}
 						}
 					}
-					cursor = r.getStringCursor();
+					cursor = r.getCursor();
 					if (cursor.equalsIgnoreCase("0")) {
 						isDone = true;
 					}
