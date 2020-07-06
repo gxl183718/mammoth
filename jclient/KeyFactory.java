@@ -9,6 +9,7 @@ public class KeyFactory {
     static Random random = new Random();
 
     public enum KeyType{
+        Image("默认图片"),Video("默认视频"),Audio("默认音频"),Other("默认附件"),Text("默认文本"),
         ImageZB("中标图片"),ImageYB("样本图片"),ImagePYQ("朋友圈图片"),ImageJMXF("界面下发图片"),ImageJMFW("界面服务图片"),ImageSJCY("随机采样图片"),
         VideoZB("中标视频"),VideoYB("样本视频"),VideoPYQ("朋友圈视频"),VideoJMXF("界面下发视频"),VideoJMFW("界面服务视频"),VideoSJCY("随机采样视频"),
         AudioZB("中标音频"),AudioYB("样本音频"),AudioPYQ("朋友圈音频"),AudioJMXF("界面下发音频"),AudioJMFW("界面服务音频"),AudioSJCY("随机采样音频"),
@@ -40,6 +41,21 @@ public class KeyFactory {
                 break;
             case OtherTEST:
                 type = "otest";
+                break;
+            case Image:
+                type = "i";
+                break;
+            case Audio:
+                type = "a";
+                break;
+            case Video:
+                type = "v";
+                break;
+            case Other:
+                type = "o";
+                break;
+            case Text:
+                type = "o";
                 break;
             case ImageZB:
                 type = "iz";
