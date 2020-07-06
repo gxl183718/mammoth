@@ -93,27 +93,18 @@ public class MMCountThread implements Runnable{
 	@Override
 	public void run() {
 		// TODO Auto-generated method stub
-		//更新bqs
-//		while (true) {
-//			StorePhoto.mmCount(conf, chmli);
-//			try {
-//				Thread.sleep(conf.getUpCountTime());
-//			} catch (InterruptedException e) {
-//				e.printStackTrace();
-//			}
-//		}
 
 		Timer timer = new Timer();
 		//1.统计所有数据
-		if(conf.isSSMaster()){
-			TimerTask task1 = new TimerTask(){
-				@Override
-				public void run() {
-					StorePhoto.mmCount(conf);
-				}
-			};
-			timer.scheduleAtFixedRate(task1, 10, conf.getMasterCountTime());
-		}
+//		if(conf.isSSMaster()){
+//			TimerTask task1 = new TimerTask(){
+//				@Override
+//				public void run() {
+//					StorePhoto.mmCount(conf);
+//				}
+//			};
+//			timer.scheduleAtFixedRate(task1, 10, conf.getMasterCountTime());
+//		}
 		//2.统计本节点入库情况
 		TimerTask task2 = new TimerTask(){
 			@Override
@@ -123,13 +114,13 @@ public class MMCountThread implements Runnable{
 		};
 		timer.scheduleAtFixedRate(task2, 10, conf.getThisCountTime());
 		//3.balance策略生成新的diskArray
-		TimerTask task3 = new TimerTask() {
-			@Override
-			public void run() {
-				midBalance();
-			}
-		};
-		timer.scheduleAtFixedRate(task3, 100, conf.getBalanceDiskTime());
+//		TimerTask task3 = new TimerTask() {
+//			@Override
+//			public void run() {
+//				midBalance();
+//			}
+//		};
+//		timer.scheduleAtFixedRate(task3, 100, conf.getBalanceDiskTime());
 		//4.统计写入速度
 //		TimerTask task4 = new TimerTask() {
 //			@Override

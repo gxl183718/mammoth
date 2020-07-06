@@ -103,8 +103,8 @@ public class PhotoServer {
 
         //TODO:统计功能使用了keys命令，慢查询会影响性能，关闭该功能。
         //入库统计http charts
-//        MMCountThread mmct = new MMCountThread(conf);
-//    	new Thread(mmct).start();
+        MMCountThread mmct = new MMCountThread(conf);
+    	new Thread(mmct).start();
 
         // shutdown hook
         Runtime.getRuntime().addShutdownHook(new Thread() {

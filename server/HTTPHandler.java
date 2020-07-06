@@ -1887,6 +1887,8 @@ public class HTTPHandler extends AbstractHandler {
 		results.put("imgStr", "[" + chartMap.get("img").toString() + "]");
 		results.put("audStr", "[" + chartMap.get("aud").toString() + "]");
 		results.put("vidStr", "[" + chartMap.get("vid").toString() + "]");
+		results.put("othStr", "[" + chartMap.get("oth").toString() + "]");
+		results.put("sumStr", "[" + chartMap.get("sum").toString() + "]");
 		results.put("status", "success");
 		
 		String resultJson = JSON.toJSONString(results);
@@ -1921,22 +1923,6 @@ public class HTTPHandler extends AbstractHandler {
         out.close();
     }
 
-//    public static void main(String args[]){
-//        Map<String, String> map1 = new HashMap<>();
-//        map1.put(20+"", 234+"");
-//        map1.put(14+"", 234+"");
-//        map1.put(17+"", 234+"");
-//        map1.put(12+"", 234+"");
-//        map1.put(22+"", 234+"");
-//        TreeMap<String, String> map2 = new TreeMap<>(map1);
-//        MyHashMap<String, String> myHashMap = new MyHashMap();
-//        Iterator<String> it = map2.keySet().iterator();
-//        while(it.hasNext()){
-//            String key = it.next();
-//            myHashMap.put(key, map2.get(key));
-//        }
-//        System.out.println(myHashMap.toString());
-//    }
     private void addPointforsum(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response)
 			throws IOException, ServletException {
 		response.setHeader("Access-Control-Allow-Origin", "*");
