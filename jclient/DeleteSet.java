@@ -145,7 +145,7 @@ public class DeleteSet {
             }
 
             // 删除集合所在节点,集合对应块号,都在数据库0
-            Iterator<String> ikeys1 = jedis.keys(set + ".*").iterator();
+            Iterator<String> ikeys1 = jedis.keys("*" + set + "*").iterator();
             Pipeline pipeline1 = jedis.pipelined();
             while (ikeys1.hasNext()) {
                 String key1 = ikeys1.next();
@@ -154,7 +154,7 @@ public class DeleteSet {
             pipeline1.sync();
 
             // 删除集合
-            jedis.del(set);
+//            jedis.del(set);
 
             // Delete L1 resource
             l1jedis = ca.getPc().getRpL1().getResource();
