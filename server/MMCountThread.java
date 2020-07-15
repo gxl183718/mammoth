@@ -1,6 +1,8 @@
 package mammoth.server;
 
 
+import mammoth.jclient.KeyFactory;
+
 import java.io.File;
 import java.text.DecimalFormat;
 import java.util.*;
@@ -55,17 +57,16 @@ public class MMCountThread implements Runnable{
 			minSpace = f.getUsableSpace() < minSpace ? f.getUsableSpace():minSpace;
 			spaceDisk.put(d, f.getUsableSpace());
 		}
-//		for (Map.Entry<String, Long> entry : spaceDisk.entrySet()){
-//			numDisk.put(entry.getKey(), DoubleFormatInt((double)entry.getValue()/(double)minSpace));
-//		}
+		List<String> list = new ArrayList<>();
+		for (Map.Entry<String, Long> entry : spaceDisk.entrySet()){
+			int pro = DoubleFormatInt((double)entry.getValue()/(double)minSpace);
+			for(int i = pro; i > 0; i --){
+				list.add(entry.getKey());
+			}
+		}
 		synchronized (diskArrayBalance){
 			diskArrayBalance.clear();
-			for (Map.Entry<String, Long> entry : spaceDisk.entrySet()){
-				int pro = DoubleFormatInt((double)entry.getValue()/(double)minSpace);
-				for(int i = pro; i > 0; i --){
-					diskArrayBalance.add(entry.getKey());
-				}
-			}
+			diskArrayBalance.addAll(list);
 		}
 
 	}
@@ -114,13 +115,13 @@ public class MMCountThread implements Runnable{
 		};
 		timer.scheduleAtFixedRate(task2, 10, conf.getThisCountTime());
 		//3.balance策略生成新的diskArray
-//		TimerTask task3 = new TimerTask() {
-//			@Override
-//			public void run() {
-//				midBalance();
-//			}
-//		};
-//		timer.scheduleAtFixedRate(task3, 100, conf.getBalanceDiskTime());
+		TimerTask task3 = new TimerTask() {
+			@Override
+			public void run() {
+				midBalance();
+			}
+		};
+		timer.scheduleAtFixedRate(task3, 100, conf.getBalanceDiskTime());
 		//4.统计写入速度
 //		TimerTask task4 = new TimerTask() {
 //			@Override

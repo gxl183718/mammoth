@@ -340,14 +340,14 @@ public class StorePhoto {
         int err = 0;
         String disk;
         // 随机选一个磁盘
-        //List<String> list = MMCountThread.getdDiskArrayBalance();
-        //if (ServerHealth.getBalance() && list.size() != 0){
-       //     String[] newDiskArrayBalance = list.toArray(new String[0]);
-       //     disk = newDiskArrayBalance[new Random().nextInt(newDiskArrayBalance.length)];
-       // }else{
+        List<String> list = MMCountThread.getdDiskArrayBalance();
+        if (ServerHealth.getBalance() && list.size() != 0){
+            String[] newDiskArrayBalance = list.toArray(new String[0]);
+            disk = newDiskArrayBalance[new Random().nextInt(newDiskArrayBalance.length)];
+        }else{
             int diskid = new Random().nextInt(diskArray.length);
             disk = diskArray[diskid];
-       // }
+        }
         StoreSetContext ssc = null;
         do {
             ssc = writeContextHash.get(set + ":" + disk);
